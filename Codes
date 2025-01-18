@@ -1,0 +1,148 @@
+product.html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Product Page</title>
+</head>
+<body>
+  <h1>Product Catalog</h1>
+  <div id="product-list"></div>
+
+  <script>
+    // Fetch product data from the backend (inventory + CMS content)
+    fetch('http://localhost:3000/api/products')
+      .then(response => response.json())
+      .then(products => {
+        const productListElement = document.getElementById('product-list');
+        
+        // Loop through products and display them
+        products.forEach(product => {
+          const productElement = document.createElement('div');
+          productElement.classList.add('product');
+          
+          productElement.innerHTML = `
+            <h2>${product.name}</h2>
+            <img src="${product.image_url}" alt="${product.name}">
+            <p>${product.description}</p>
+            <p>Price: $${product.price}</p>
+            <p>Stock: ${product.stock_quantity}</p>
+          `;
+          
+          productListElement.appendChild(productElement);
+        });
+      });
+  </script>
+</body>
+</html>
+
+
+
+Admin----
+<!-- Simple Admin Interface for Updating CMS Content -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Panel</title>
+</head>
+<body>
+  <h1>Admin Panel - Update Product Content</h1>
+  
+  <label for="productId">Product ID:</label>
+  <input type="number" id="productId" name="productId" required>
+  
+  <label for="description">Description:</label>
+  <textarea id="description" name="description" required></textarea>
+  
+  <label for="imageUrl">Image URL:</label>
+  <input type="text" id="imageUrl" name="imageUrl" required>
+  
+  <button onclick="updateProductContent()">Update Product</button>
+  
+  <script>
+    function updateProductContent() {
+      const productId = document.getElementById('productId').value;
+      const description = document.getElementById('description').value;
+      const imageUrl = document.getElementById('imageUrl').value;
+      
+      const data = {
+        product_id: parseInt(productId),
+        description: description,
+        image_url: imageUrl
+      };
+      
+      fetch('http://localhost:3000/api/update-product-content', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      })
+      .then(response => response.json())
+      .then(data => alert(data.message))
+      .catch(error => console.error('Error:', error));
+    }
+  </script>
+</body>
+</html>
+
+
+
+backend:-------
+// Node.js / Express - Example backend with CMS and Inventory integration
+
+const express = require('express');
+const app = express();
+const bodyParser = require('body-parser');
+
+// Mock data for inventory
+let products = [
+  { product_id: 1, name: "Product A", stock_quantity: 100, price: 20, description: "", image_url: "", category: "Electronics" },
+  { product_id: 2, name: "Product B", stock_quantity: 50, price: 15, description: "", image_url: "", category: "Clothing" }
+];
+
+// Mock CMS API - For managing product descriptions and images
+let cmsData = [
+  { product_id: 1, description: "High-quality electronic device.", image_url: "/images/product-a.jpg" },
+  { product_id: 2, description: "Comfortable and stylish clothing.", image_url: "/images/product-b.jpg" }
+];
+
+// Use body-parser to handle JSON payloads
+app.use(bodyParser.json());
+
+// Endpoint to fetch product details, including CMS content
+app.get('/api/products', (req, res) => {
+  // Merge CMS content with inventory data
+  let productsWithCMS = products.map(product => {
+    let cmsContent = cmsData.find(item => item.product_id === product.product_id);
+    return {
+      ...product,
+      description: cmsContent ? cmsContent.description : product.description,
+      image_url: cmsContent ? cmsContent.image_url : product.image_url
+    };
+  });
+  res.json(productsWithCMS);
+});
+
+// Endpoint to update product content via CMS
+app.put('/api/update-product-content', (req, res) => {
+  const { product_id, description, image_url } = req.body;
+
+  // Find and update the CMS data
+  let cmsProduct = cmsData.find(item => item.product_id === product_id);
+  if (cmsProduct) {
+    cmsProduct.description = description;
+    cmsProduct.image_url = image_url;
+    res.json({ message: "Product content updated successfully!" });
+  } else {
+    res.status(404).json({ message: "Product not found." });
+  }
+});
+
+// Start the server
+app.listen(3000, () => {
+  console.log('Server running on http://localhost:3000');
+});
